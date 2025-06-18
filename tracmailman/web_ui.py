@@ -1,4 +1,4 @@
-from trac.config import ListOption
+# from trac.config import ListOption
 from trac.core import *
 from trac.web import chrome
 from trac.web.chrome import INavigationContributor, ITemplateProvider
@@ -6,16 +6,18 @@ from trac.web.main import IRequestHandler
 from trac.perm import IPermissionRequestor
 from trac.util import escape, Markup
 
-import sys # Workaround for: http://trac.edgewall.org/ticket/5628
+# import sys # Workaround for: http://trac.edgewall.org/ticket/5628
 import os.path
 import re
-import getopt
-import paths
+# import getopt
+# import paths
 
 import SwishE
 
-from genshi.input import HTML
-from genshi.filters import HTMLSanitizer
+from bs4 import BeautifulSoup
+from bs4.element import Tag as bs4Tag
+# from genshi.input import HTML
+# from genshi.filters import HTMLSanitizer
 
 
 def authenticated(req):
@@ -26,6 +28,7 @@ def authenticated(req):
         chrome.add_warning(req, 'Please log in')
         return False
     return True
+
 
 class MailManPluginIndex(Component):
     """
@@ -73,11 +76,9 @@ class MailManPluginIndex(Component):
         # The default content is an error message. If the code below
         # is successful, it will replace the error with real content
         data['contents'] = 'An error has occured. Please hit "Back" on your browser and try again.'
-
-        if not authenticated(req):
+        data['authenticated'] = authenticated(req)
+        if data['authenticated']:
             return 'tracmailman.html', data, 'text/html'
-        else:
-            data['authenticated'] = True
 
         # The list of mailing list archives
         data['mail_archives'] = []
@@ -144,9 +145,9 @@ class MailManPluginBrowser(Component):
     def process_request(self, req):
         req.perm.require("MAILMAN_VIEW")
         # This is a workaround for bug: http://trac.edgewall.org/ticket/5628
-        reload(sys)
-        if sys.getdefaultencoding() == 'ascii':
-            sys.setdefaultencoding("latin1")
+        # reload(sys)
+        # if sys.getdefaultencoding() == 'ascii':
+        #     sys.setdefaultencoding("latin1")
         # End: workaround
 
         # The full path to where the mailman archives are stored
@@ -156,12 +157,10 @@ class MailManPluginBrowser(Component):
 
         data = {}
         data['title'] = 'Mailing List Archive Browser'
-
+        data['authenticated'] = authenticated(req)
         # Check user is logged in
-        if not authenticated(req):
+        if data['authenticated']:
             return 'tracmailmanbrowser.html', data, 'text/html'
-        else:
-            data['authenticated'] = True
 
         # We won't respond to just anything. Let's use regexps to pull
         # out relevant tokens, and verify the tokens.
@@ -184,17 +183,20 @@ class MailManPluginBrowser(Component):
 
         path = mail_archive_path + priv + '/' + listname + '/' + docID + '.' + extension
         if os.path.isfile(path):
-            archivedMail = open(path, 'r').read()
+            with open(path, 'r') as archivedFile:
+                archivedMail = archivedFile.read()
             if extension == 'html':
-                html = HTML(archivedMail,encoding='utf-8')
+                # html = HTML(archivedMail, encoding='utf-8')
                 # At this point, the HTML document is turned into a Genshi
                 # object. For more info on how to transform the HTML
                 # object using Genshi:
                 # http://genshi.edgewall.org/wiki/ApiDocs
                 #
-                sanitized = html.select('body/*') | HTMLSanitizer()
-                contents = sanitized.render('html')
-                contents = re.sub(r'<a name=.+?a>',"",contents)
+                # sanitized = html.select('body/*') | HTMLSanitizer()
+                # contents = sanitized.render('html')
+                soup = BeautifulSoup(archivedMail, 'html.parser')
+                contents = '\n'.join([str(t) for t in filter(lambda x: isinstance(x, bs4Tag), soup.body.children)])
+                contents = re.sub(r'<a name=.+?a>', "", contents)
                 data['contents'] = Markup(contents)
                 data['title'] += " - " + listname
                 return 'tracmailmanbrowser.html', data, 'text/html'
@@ -251,9 +253,9 @@ class TracMailManSearchPlugin(Component):
     def process_request(self, req):
         req.perm.require("MAILMAN_VIEW")
         # This is a workaround for bug: http://trac.edgewall.org/ticket/5628
-        reload(sys)
-        if sys.getdefaultencoding() == 'ascii':
-            sys.setdefaultencoding("latin1")
+        # reload(sys)
+        # if sys.getdefaultencoding() == 'ascii':
+        #     sys.setdefaultencoding("latin1")
         # End: workaround
 
         # The full path to where the mailman archives are stored
@@ -271,12 +273,11 @@ class TracMailManSearchPlugin(Component):
 
         data = {}
         data['title'] = 'Mailing List Search'
+        data['authenticated'] = authenticated(req)
 
         # Check the user is logged in
-        if not authenticated(req):
+        if not data['authenticated']:
             return 'tracmailmansearch.html', data, 'text/html'
-        else:
-            data['authenticated'] = True
 
         # Add mailing lists to be displayed in the search
         data['mail_archives'] = []
@@ -310,14 +311,14 @@ class TracMailManSearchPlugin(Component):
 
         try:
             handle = SwishE.new(swishIndex)
-        except Exception, e:
+        except Exception as e:
             chrome.add_warning(req, 'Search index not found. Please contact the administrator for help.')
             return 'tracmailmansearch.html', data, 'text/html'
 
         # Run the query using the search engine
         try:
             swishResults = handle.query(query)
-        except Exception, e:
+        except Exception as e:
             chrome.add_warning(req, 'Bad query: e.message')
             return 'tracmailmansearch.html', data, 'text/html'
 

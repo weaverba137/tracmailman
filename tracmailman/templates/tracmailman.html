@@ -1,52 +1,58 @@
-<!DOCTYPE html
-    PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
-    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml"
-      xmlns:xi="http://www.w3.org/2001/XInclude"
-      xmlns:py="http://genshi.edgewall.org/">
-<xi:include href="layout.html" />
-<xi:include href="macros.html" />
-
-
+# extends 'layout.html'
+<!DOCTYPE html>
+<html>
 <head>
-  <title>$title</title>
+    <title>
+      # block title
+      #   if title:
+      ${title} ${ super() }
+      #   endif
+      # endblock title
+    </title>
+
+    # block head
+    ${ super() }
+    # endblock head
 </head>
 
 <body>
+  # block content
   <h1>Mailing List Search</h1>
-  <py:if test="authenticated">
+  # if authenticated:
 
     <form action="tracmailman/search" method="post" id="update">
-      <input type="text" name="query" value="$query"/>
+      ${jmacros.form_token_input()}
+      <input type="text" name="query" value="${query}"/>
       <select name="search_list">
         <option value="all" selected="selected">All lists</option>
-        <py:for each="list in mail_archives">
-          <option value="$list">$list</option>
-        </py:for>
+        # for list in mail_archives:
+        <option value="${list}">${list}</option>
+        # endfor
       </select>
       <input type="submit" value="Search"/>
     </form>
 
 
     <h3>Browse Mailing Archives</h3>
-    <p>
-      Choose an archive to browse.
-    </p>
+    <p>Choose an archive to browse.</p>
     <ul>
-      <py:for each="list in mail_archives">
-        <py:if test="list in pub_archives">
-          <li><a href="tracmailman/browser/public/$list/index.html">$list</a></li>
-        </py:if>
-        <py:if test="list in priv_archives">
-          <li><a href="tracmailman/browser/private/$list/index.html">$list</a></li>
-        </py:if>
-      </py:for>
+      # for list in mail_archives:
+      # if list in pub_archives:
+      <li><a href="tracmailman/browser/public/$list/index.html">${list}</a></li>
+      # endif
+      # if list in priv_archives:
+      <li><a href="tracmailman/browser/private/$list/index.html">${list}</a></li>
+      # endif
+      # endfor
     </ul>
     <br/>
-  </py:if>
+  # endif
 
-  <p>
-  Documentation on all search capabilities can be found <a href="http://swish-e.org/docs/swish-search.html#searching_syntax_and_operations">here</a>.
-  </p>
+  {# This is no longer a valid link. There is no simple replacement at this time.
+  <p>Documentation on all search capabilities can be found <a href="http://swish-e.org/docs/swish-search.html#searching_syntax_and_operations">here</a>.</p>
+  #}
+  ${ super() }
+
+  # endblock content
 </body>
 </html>
