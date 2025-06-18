@@ -1,3 +1,13 @@
+import sys
+
+
+def trace_calls(frame, event, arg):
+    if event == 'call':
+        print(f'Calling: {frame.f_code.co_name}')
+    return trace_calls
+
+sys.settrace(trace_calls)
+
 # from trac.config import ListOption
 from trac.core import *
 from trac.web import chrome
@@ -335,7 +345,6 @@ class TracMailManSearchPlugin(Component):
         #
         #data['numHits'] = numHits
 
-
         ordered_results = []
         for swishResult in swishResults:
             title = swishResult.getproperty('swishtitle')
@@ -348,7 +357,7 @@ class TracMailManSearchPlugin(Component):
             if search_list == 'all' and list_name in private_archives:
                 continue
             # Obtain the mailing list number for this mail
-            ordered_results.append((list_num,swishResult))
+            ordered_results.append((list_num, swishResult))
         ordered_results.sort()
         ordered_results = [result[1] for result in ordered_results]
         numHits = len(ordered_results)
