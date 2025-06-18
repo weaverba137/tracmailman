@@ -4,7 +4,7 @@ from trac.web import chrome
 from trac.web.chrome import INavigationContributor, ITemplateProvider
 from trac.web.main import IRequestHandler
 from trac.perm import IPermissionRequestor
-from trac.util import Markup
+from trac.util.html import Markup
 
 # import sys # Workaround for: http://trac.edgewall.org/ticket/5628
 import os.path
