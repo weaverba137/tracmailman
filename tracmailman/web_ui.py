@@ -78,7 +78,7 @@ class MailManPluginIndex(Component):
         data['contents'] = 'An error has occured. Please hit "Back" on your browser and try again.'
         data['authenticated'] = authenticated(req)
         if not data['authenticated']:
-            return 'tracmailman.html', data, 'text/html'
+            return 'tracmailman.html', data
 
         # The list of mailing list archives
         data['mail_archives'] = []
@@ -94,7 +94,7 @@ class MailManPluginIndex(Component):
                 data['pub_archives'].append(pubarchive)
         data['mail_archives'] = data['priv_archives'] + data['pub_archives']
         data['mail_archives'].sort()
-        return 'tracmailman.html', data, 'text/html'
+        return 'tracmailman.html', data
 
     # ITemplateProvider methods
     def get_htdocs_dirs(self):
