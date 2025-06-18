@@ -291,16 +291,16 @@ class TracMailManSearchPlugin(Component):
         data['mail_archives'].sort()
 
         # Grab the search query
-        if req.args.has_key('query') and req.args['query'].strip():
-            query = req.args['query']
+        query = req.args.get('query', None)
+        if query is not None and query.strip():
             data['query'] = query
         else:
             chrome.add_warning(req, 'Please enter a query.')
             return 'tracmailmansearch.html', data
 
         # Grab which list the user searched
-        if req.args.has_key('search_list'):
-            search_list = req.args['search_list']
+        search_list = req.args.get('search_list', None)
+        if search_list is not None and search_list.strip():
             data['search_list'] = search_list
         else:
             chrome.add_warning(req, 'Please select a list to search from.')
@@ -359,10 +359,11 @@ class TracMailManSearchPlugin(Component):
 
         # page and hitsPerPage are to control pagination
         hitsPerPage = 20
-        if req.args.has_key('page'):
+        req_page = req.args.get('page', None)
+        if req_page is not None:
             # For usability we want to let the user see "page=1", but
             # in reality, this maps to the 0th page
-            page = int(req.args['page']) - 1
+            page = int(req_page) - 1
         else:
             page = 0
 
