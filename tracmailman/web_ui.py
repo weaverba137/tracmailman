@@ -77,7 +77,7 @@ class MailManPluginIndex(Component):
         # is successful, it will replace the error with real content
         data['contents'] = 'An error has occured. Please hit "Back" on your browser and try again.'
         data['authenticated'] = authenticated(req)
-        if data['authenticated']:
+        if not data['authenticated']:
             return 'tracmailman.html', data, 'text/html'
 
         # The list of mailing list archives
@@ -159,8 +159,8 @@ class MailManPluginBrowser(Component):
         data['title'] = 'Mailing List Archive Browser'
         data['authenticated'] = authenticated(req)
         # Check user is logged in
-        if data['authenticated']:
-            return 'tracmailmanbrowser.html', data, 'text/html'
+        if not data['authenticated']:
+            return 'tracmailmanbrowser.html', data
 
         # We won't respond to just anything. Let's use regexps to pull
         # out relevant tokens, and verify the tokens.
@@ -168,7 +168,7 @@ class MailManPluginBrowser(Component):
         result = re.search(r'^/tracmailman/browser/(public|private)/([^/]+)/([^.]+)\.(html|txt|txt\.gz)$', req.path_info)
         if result is None:
             chrome.add_warning(req, 'The URL you requested is does not refer to a valid document')
-            return 'tracmailmanbrowser.html', data, 'text/html'
+            return 'tracmailmanbrowser.html', data
 
         priv     = result.group(1)
         listname = result.group(2)
@@ -178,7 +178,7 @@ class MailManPluginBrowser(Component):
         # Check if user is trying to access a private list
         if listname in self.env.config.getlist('tracmailman', 'private_lists'):
             chrome.add_warning(req, 'This list is private and not browsable. Please go through the standard Mailman interface.')
-            return 'tracmailmanbrowser.html', data, 'text/html'
+            return 'tracmailmanbrowser.html', data
 
 
         path = mail_archive_path + priv + '/' + listname + '/' + docID + '.' + extension
@@ -199,7 +199,7 @@ class MailManPluginBrowser(Component):
                 contents = re.sub(r'<a name=.+?a>', "", contents)
                 data['contents'] = Markup(contents)
                 data['title'] += " - " + listname
-                return 'tracmailmanbrowser.html', data, 'text/html'
+                return 'tracmailmanbrowser.html', data
             else:
                 req.send_response(200)
                 if extension == 'txt':
@@ -222,7 +222,7 @@ class MailManPluginBrowser(Component):
             else:
                 chrome.add_warning(req, 'The mail message that you requested cannot be found')
 
-            return 'tracmailmanbrowser.html', data, 'text/html'
+            return 'tracmailmanbrowser.html', data
 
     # ITemplateProvider methods
     def get_htdocs_dirs(self):
@@ -277,7 +277,7 @@ class TracMailManSearchPlugin(Component):
 
         # Check the user is logged in
         if not data['authenticated']:
-            return 'tracmailmansearch.html', data, 'text/html'
+            return 'tracmailmansearch.html', data
 
         # Add mailing lists to be displayed in the search
         data['mail_archives'] = []
@@ -296,7 +296,7 @@ class TracMailManSearchPlugin(Component):
             data['query'] = query
         else:
             chrome.add_warning(req, 'Please enter a query.')
-            return 'tracmailmansearch.html', data, 'text/html'
+            return 'tracmailmansearch.html', data
 
         # Grab which list the user searched
         if req.args.has_key('search_list'):
@@ -304,7 +304,7 @@ class TracMailManSearchPlugin(Component):
             data['search_list'] = search_list
         else:
             chrome.add_warning(req, 'Please select a list to search from.')
-            return 'tracmailmansearch.html', data, 'text/html'
+            return 'tracmailmansearch.html', data
 
         # Get the search index for the particular list the user selected
         swishIndex  = search_index_path + search_list + '-index.swish-e'
@@ -313,14 +313,14 @@ class TracMailManSearchPlugin(Component):
             handle = SwishE.new(swishIndex)
         except Exception as e:
             chrome.add_warning(req, 'Search index not found. Please contact the administrator for help.')
-            return 'tracmailmansearch.html', data, 'text/html'
+            return 'tracmailmansearch.html', data
 
         # Run the query using the search engine
         try:
             swishResults = handle.query(query)
         except Exception as e:
             chrome.add_warning(req, 'Bad query: e.message')
-            return 'tracmailmansearch.html', data, 'text/html'
+            return 'tracmailmansearch.html', data
 
         # The number of hits
         #numHits = swishResults.hits()
@@ -355,7 +355,7 @@ class TracMailManSearchPlugin(Component):
         data['numHits'] = numHits
 
         if numHits == 0:
-            return 'tracmailmansearch.html', data, 'text/html'
+            return 'tracmailmansearch.html', data
 
         # page and hitsPerPage are to control pagination
         hitsPerPage = 20
@@ -405,7 +405,7 @@ class TracMailManSearchPlugin(Component):
 
         data['results'] = results
         data['title'] += " - " + '"' + query + '"'
-        return 'tracmailmansearch.html', data, 'text/html'
+        return 'tracmailmansearch.html', data
 
 
     # ITemplateProvider methods
