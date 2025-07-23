@@ -1,13 +1,3 @@
-import sys
-
-
-def trace_calls(frame, event, arg):
-    if event == 'call':
-        print(f'Calling: {frame.f_code.co_name}')
-    return trace_calls
-
-sys.settrace(trace_calls)
-
 # from trac.config import ListOption
 from trac.core import *
 from trac.web import chrome
