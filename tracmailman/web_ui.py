@@ -400,7 +400,10 @@ class TracMailManSearchPlugin(Component):
             # The rest of the data
             hit['number'] = firstHit + seen
             hit['title'] = sr.getProperty('swishtitle')
-            hit['description'] = sr.getProperty('swishdescription')
+            try:
+                hit['description'] = sr.getProperty('swishdescription')
+            except UnicodeDecodeError as e:
+                hit['description'] = e.object.decode('latin1')
             results.append(hit)
 
         data['results'] = results
