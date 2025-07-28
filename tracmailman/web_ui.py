@@ -328,7 +328,7 @@ class TracMailManSearchPlugin(Component):
         # If we searched all the mailing lists, remove the ones from the private lists
         #if search_list == 'all':
         #    for result in swishResults:
-        #        msg = result.getproperty('swishdocpath')
+        #        msg = result.getProperty('swishdocpath')
         #        for private_list in private_archives:
         #            if private_list in msg:
         #                numHits -= 1
@@ -337,7 +337,7 @@ class TracMailManSearchPlugin(Component):
 
         ordered_results = []
         for swishResult in swishResults:
-            title = swishResult.getproperty('swishtitle')
+            title = swishResult.getProperty('swishtitle')
             regex = re.match(r'^\[(.+?)\s(\d+)\].*', title)
             if regex is None:
                 continue
@@ -382,7 +382,7 @@ class TracMailManSearchPlugin(Component):
             #sr = swishResults.next()
             sr = ordered_results[firstHit + seen - 1]
             hit = {}
-            diskPath = sr.getproperty('swishdocpath')
+            diskPath = sr.getProperty('swishdocpath')
             # Check if this msg is from a private list; if so, discard it
             #valid = True
             #for private_archive in private_archives:
@@ -399,8 +399,8 @@ class TracMailManSearchPlugin(Component):
             hit['path'] = 'browser/' + webPath
             # The rest of the data
             hit['number'] = firstHit + seen
-            hit['title'] = sr.getproperty('swishtitle')
-            hit['description'] = sr.getproperty('swishdescription')
+            hit['title'] = sr.getProperty('swishtitle')
+            hit['description'] = sr.getProperty('swishdescription')
             results.append(hit)
 
         data['results'] = results
