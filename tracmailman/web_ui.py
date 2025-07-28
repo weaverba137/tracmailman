@@ -367,7 +367,7 @@ class TracMailManSearchPlugin(Component):
             page = 0
 
         data['currentPage'] = page
-        data['maxPage'] = numHits / hitsPerPage
+        data['maxPage'] = numHits // hitsPerPage
         if numHits % hitsPerPage > 0:
             data['maxPage'] += 1
 
