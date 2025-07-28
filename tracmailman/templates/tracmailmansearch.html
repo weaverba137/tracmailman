@@ -51,6 +51,7 @@
     <hr/>
     # for hit in results:
     <p>${hit.number}. <a href="${hit.path}">${hit.title}</a><br/><em>${hit.description} &hellip;</em><br/></p>
+    # endfor
     <p>Result Navigation:
     # for i in range(0, maxPage):
     # if i == currentPage:
