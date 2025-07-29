@@ -1,3 +1,8 @@
+import os.path
+import re
+import subprocess as sub
+import json
+
 # from trac.config import ListOption
 from trac.core import *
 from trac.web import chrome
@@ -6,18 +11,8 @@ from trac.web.main import IRequestHandler
 from trac.perm import IPermissionRequestor
 from trac.util.html import Markup
 
-# import sys # Workaround for: http://trac.edgewall.org/ticket/5628
-import os.path
-import re
-# import getopt
-# import paths
-
-import SwishE
-
 from bs4 import BeautifulSoup
 from bs4.element import Tag as bs4Tag
-# from genshi.input import HTML
-# from genshi.filters import HTMLSanitizer
 
 
 def authenticated(req):
@@ -246,6 +241,9 @@ class MailManPluginBrowser(_MailmanPluginCore):
 class TracMailManSearchPlugin(_MailmanPluginCore):
     implements(IRequestHandler, ITemplateProvider, IPermissionRequestor)
 
+    swishFormat = '{"title": "%t", "path": "%p", "description": "%d"}\\n'
+    titleRegex = re.compile(r'^\[(.+?)\s(\d+)\].*')
+
     # IRequestHandler methods
     def match_request(self, req):
         """
@@ -303,51 +301,33 @@ class TracMailManSearchPlugin(_MailmanPluginCore):
         # Get the search index for the particular list the user selected
         swishIndex  = search_index_path + search_list + '-index.swish-e'
 
-        try:
-            handle = SwishE.new(swishIndex)
-        except SwishE.error as e:
-            chrome.add_warning(req, f'Search index for "{search_list}" not found. It is possible that this mailing list has never been used. Browse "{search_list}" on the main Mailing Lists page to confirm.')
+
+        swishCommand = ['/usr/local/bin/swish-e', '-f', swishIndex,
+                        '-w', query,
+                        '-x', self.swishFormat]
+
+        proc = sub.Popen(swishCommand, stdout=sub.PIPE, stderr=sub.PIPE)
+        out, err = proc.communicate()
+        results = out.decode('latin1')
+        if proc.returncode != 0:
+            if 'Could not open the index file' in results:
+                chrome_warn = f'Search index for "{search_list}" not found. It is possible that this mailing list has never been used. Browse "{search_list}" on the main Mailing Lists page to confirm.'
+            else:
+                chrome_warn = f'Unknown error. Message was "{results}".'
+            chrome.add_warning(req, chrome_warn)
             return 'tracmailmansearch.html', data
 
-        # Run the query using the search engine
-        try:
-            swishResults = handle.query(query)
-        except Exception as e:
-            chrome.add_warning(req, 'Bad query: e.message')
+        if 'err: no results' in results:
+            data['numHits'] = 0
+            chrome.add_warning(req, f'No results for "{query}".')
             return 'tracmailmansearch.html', data
 
-        # The number of hits
-        # numHits = swishResults.hits()
-
-        # If we searched all the mailing lists, remove the ones from the private lists
-        # if search_list == 'all':
-        #     for result in swishResults:
-        #         msg = result.getProperty('swishdocpath')
-        #         for private_list in private_lists:
-        #             if private_list in msg:
-        #                 numHits -= 1
-        #
-        # data['numHits'] = numHits
-
-        ordered_results = []
-        for swishResult in swishResults:
-            title = swishResult.getProperty('swishtitle')
-            regex = re.match(r'^\[(.+?)\s(\d+)\].*', title)
-            if regex is None:
-                continue
-            list_name = regex.group(1)
-            list_num = int(regex.group(2))
-            # If we searched all the mailing lists, remove the ones from the private lists
-            if search_list == 'all' and list_name in private_lists:
-                continue
-            # Obtain the mailing list number for this mail
-            ordered_results.append((list_num, swishResult))
-        ordered_results.sort()
-        ordered_results = [result[1] for result in ordered_results]
+        ordered_results = self._parse_results(results, search_list)
         numHits = len(ordered_results)
         data['numHits'] = numHits
 
         if numHits == 0:
+            chrome.add_warning(req, f'No results for "{query}".')
             return 'tracmailmansearch.html', data
 
         # page and hitsPerPage are to control pagination
@@ -365,41 +345,59 @@ class TracMailManSearchPlugin(_MailmanPluginCore):
         if numHits % hitsPerPage > 0:
             data['maxPage'] += 1
 
-        results = []
+        data['results'] = []
         firstHit = page * hitsPerPage
         data['firstHit'] = firstHit
         data['lastHit'] = min(firstHit + hitsPerPage, numHits)
-        swishResults.seek(firstHit)
         seen = 0
         while((seen < hitsPerPage) and (firstHit + seen < numHits)):
             seen += 1
-            #sr = swishResults.next()
             sr = ordered_results[firstHit + seen - 1]
             hit = {}
-            diskPath = sr.getProperty('swishdocpath')
-            # Check if this msg is from a private list; if so, discard it
-            # valid = True
-            # for private_archive in private_lists:
-            #     if private_archive in diskPath:
-            #         valid = False
-            #         seen -= 1
-            #         break
-            # if not valid:
-            #     continue
-
-            webPath = diskPath.lstrip(mail_archive_path)
-            # Just in case there is still a leading '/'
-            webPath = webPath.lstrip('/')
-            hit['path'] = 'browser/' + webPath
-            # The rest of the data
+            hit['path'] = 'browser/' + sr['path'].lstrip(mail_archive_path).lstrip('/')
             hit['number'] = firstHit + seen
-            hit['title'] = sr.getProperty('swishtitle')
-            try:
-                hit['description'] = sr.getProperty('swishdescription')
-            except UnicodeDecodeError as e:
-                hit['description'] = e.object.decode('latin1')
-            results.append(hit)
+            hit['title'] = sr['title']
+            hit['description'] = sr['description']
+            data['results'].append(hit)
 
-        data['results'] = results
         data['title'] += " - " + '"' + query + '"'
         return 'tracmailmansearch.html', data
+
+    def _parse_results(self, results, search_list):
+        """Parse results of a SwishE search.
+
+        Parameters
+        ----------
+        results : :class:`str`
+            The results returned by :command:`swish-e`.
+        search_list : :class:`str`
+            The name of the list in the search.
+
+        Returns
+        -------
+        :class:`list`
+            A :class:`list` of :class:`dict` with the parsed data.
+        """
+        private_lists = self.private_lists()
+        lines = results.split('\n')
+        hits = 0
+        ordered_results = list()
+        for line in lines:
+            ll = line.strip()
+            # if ll.startswith('# Number of hits:'):
+            #     hits = int(ll.split(':')[1].strip())
+            if ll.startswith('{'):
+                data = json.loads(ll)
+                regex = self.titleRegex.match(data['title'])
+                if regex is None:
+                    continue
+                list_name = regex.group(1)
+                list_num = int(regex.group(2))
+                # If we searched all the mailing lists, remove the ones from the private lists
+                if search_list == 'all' and list_name in private_lists:
+                    continue
+                data['list_number'] = list_num
+                ordered_results.append(data)
+        # if hits == len(ordered_results):
+        #     pass
+        return list(sorted(ordered_results, key=lambda x: x['list_number']))
