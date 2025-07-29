@@ -32,11 +32,9 @@
     <form action="search" method="get" id="update">
       <input type="text" name="query" value="${query}"/>
       <select name="search_list">
-        <option value="all" ${{'selected': search_list == 'all'}}>All lists</option>
+        <option value="all" ${{'selected': search_list == 'all'}|htmlattr}>All lists</option>
         # for list in mail_archives:
-        # if list == search_list:
-        <option value="${list}" ${{'selected': search_list == list}|htmlattr}>${list}</option></py:when>
-        # endif
+        <option value="${list}" ${{'selected': search_list == list}|htmlattr}>${list}</option>
         # endfor
       </select>
       <input type="submit" value="Search" />

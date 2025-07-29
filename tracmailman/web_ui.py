@@ -249,7 +249,6 @@ class TracMailManSearchPlugin(Component):
         """
         return req.path_info == '/tracmailman/search'
 
-
     def process_request(self, req):
         req.perm.require("MAILMAN_VIEW")
         # This is a workaround for bug: http://trac.edgewall.org/ticket/5628
