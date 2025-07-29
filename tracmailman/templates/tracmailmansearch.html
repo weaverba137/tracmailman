@@ -40,10 +40,6 @@
       # if results:
       <h2>Results: ${numHits} found. Displaying results ${firstHit+1} to ${lastHit}.</h2>
       <h3>More recent results are displayed first.</h3>
-      <hr/>
-      # for hit in results:
-      <p>${hit.number}. <a href="${hit.path}">${hit.title}</a><br/><em>${hit.description} &hellip;</em><br/></p>
-      # endfor
       <p>Result Navigation:
       # for i in range(0, maxPage):
       # if i == currentPage:
@@ -53,6 +49,10 @@
       # endif
       # endfor
       </p>
+      <hr/>
+      # for hit in results:
+      <p>${hit.number}. <a href="${hit.path}">${hit.title}</a><br/>${hit.description} &hellip;</p>
+      # endfor
       # endif
 
       # endif

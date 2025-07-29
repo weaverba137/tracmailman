@@ -21,7 +21,7 @@
 
       # if authenticated:
       <form action="tracmailman/search" method="get" id="update">
-        <input type="text" name="query" value="${query}"/>
+        <input type="text" name="query" id="search" value="${query}" class="trac-autofocus" size="40"/>
         <select name="search_list">
           <option value="all" selected="selected">All lists</option>
           # for list in mail_archives:
