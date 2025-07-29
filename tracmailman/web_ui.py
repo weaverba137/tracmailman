@@ -1,7 +1,6 @@
 import os.path
 import re
 import subprocess as sub
-import json
 
 # from trac.config import ListOption
 from trac.core import *
@@ -241,7 +240,8 @@ class MailManPluginBrowser(_MailmanPluginCore):
 class TracMailManSearchPlugin(_MailmanPluginCore):
     implements(IRequestHandler, ITemplateProvider, IPermissionRequestor)
 
-    swishFormat = '{"title": "%t", "path": "%p", "description": "%d"}\\n'
+    # swishFormat = '{"title": "%t", "path": "%p", "description": "%d"}\\n'
+    swishFormat = '||%t||%p||%d||\\n'
     titleRegex = re.compile(r'^\[(.+?)\s(\d+)\].*')
 
     # IRequestHandler methods
@@ -300,7 +300,6 @@ class TracMailManSearchPlugin(_MailmanPluginCore):
 
         # Get the search index for the particular list the user selected
         swishIndex  = search_index_path + search_list + '-index.swish-e'
-
 
         swishCommand = ['/usr/local/bin/swish-e', '-f', swishIndex,
                         '-w', query,
@@ -386,8 +385,12 @@ class TracMailManSearchPlugin(_MailmanPluginCore):
             ll = line.strip()
             # if ll.startswith('# Number of hits:'):
             #     hits = int(ll.split(':')[1].strip())
-            if ll.startswith('{'):
-                data = json.loads(ll)
+            if ll.startswith('||'):
+                data = dict()
+                columns = ll.split('||')
+                data['title'] = columns[1]
+                data['path'] = columns[2]
+                data['description'] = columns[3]
                 regex = self.titleRegex.match(data['title'])
                 if regex is None:
                     continue
