@@ -399,8 +399,9 @@ class TracMailManSearchPlugin(_MailmanPluginCore):
                 # If we searched all the mailing lists, remove the ones from the private lists
                 if search_list == 'all' and list_name in private_lists:
                     continue
+                data['list_name'] = list_name
                 data['list_number'] = list_num
                 ordered_results.append(data)
         # if hits == len(ordered_results):
         #     pass
-        return list(sorted(ordered_results, key=lambda x: x['list_number']))
+        return list(sorted(ordered_results, key=lambda x: x['list_number'], reverse=True))
