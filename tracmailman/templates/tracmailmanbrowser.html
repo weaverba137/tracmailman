@@ -16,15 +16,15 @@
   </head>
   <body>
     # block content
-    # if authenticated:
+    <div id="content" class="tracmailman">
+      # if authenticated:
 
 ${contents}
 
-    # endif
+      # endif
 
-    ${ super() }
-
+      ${ super() }
+    </div>
     # endblock content
-
   </body>
 </html>

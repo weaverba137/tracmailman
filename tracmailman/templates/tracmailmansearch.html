@@ -11,64 +11,54 @@
     </title>
 
     # block head
-	{# This CSS does not appear to be used.
-    <style type="text/css">
-      table.updateMessages
-      {
-      background-color: lightyellow;
-      border-collapse: collapse; border: 1px solid black;
-      }
-    </style>
-    #}
     ${ super() }
     # endblock head
   </head>
   <body>
     # block content
-    <h1>Mailing List Search</h1>
-    <div id="content" class="tracswishe">
+    <div id="content" class="tracmailman">
+      <h1><label for="query">Mailing List Search</label></h1>
 
-    # if authenticated:
-    <form action="search" method="get" id="update">
-      <input type="text" name="query" value="${query}"/>
-      <select name="search_list">
-        <option value="all" ${{'selected': search_list == 'all'}|htmlattr}>All lists</option>
-        # for list in mail_archives:
-        <option value="${list}" ${{'selected': search_list == list}|htmlattr}>${list}</option>
-        # endfor
-      </select>
-      <input type="submit" value="Search" />
-    </form>
+      # if authenticated:
+      <form action="search" method="get" id="update">
+        <input type="text" name="query" id="query" value="${query}" class="trac-autofocus" size="40"/>
+        <select name="search_list">
+          <option value="all" ${{'selected': search_list == 'all'}|htmlattr}>All lists</option>
+          # for list in mail_archives:
+          <option value="${list}" ${{'selected': search_list == list}|htmlattr}>${list}</option>
+          # endfor
+        </select>
+        <input type="submit" value="Search" />
+      </form>
+      <div class="trac-help">
+        <p><strong>Note:</strong> Documentation on all search capabilities can be found <a href="https://www.esa.org/tiee/search/html/swish-search.html#searching_syntax_and_operations">here</a>.</p>
+      </div>
+      # if numHits == 0:
+      <h2>No results were found.</h2>
+      # endif
 
-    # if numHits == 0:
-    <h2>No results</h2>
-    # endif
+      # if results:
+      <h2>Results: ${numHits} found. Displaying results ${firstHit+1} to ${lastHit}.</h2>
+      <h3>More recent results are displayed first.</h3>
+      <hr/>
+      # for hit in results:
+      <p>${hit.number}. <a href="${hit.path}">${hit.title}</a><br/><em>${hit.description} &hellip;</em><br/></p>
+      # endfor
+      <p>Result Navigation:
+      # for i in range(0, maxPage):
+      # if i == currentPage:
+      ${i+1}
+      # else:
+      <a href="search?query=${query}&amp;search_list=${search_list}&amp;page=${i+1}">${i+1}</a>
+      # endif
+      # endfor
+      </p>
+      # endif
 
-    # if results:
-    <h2>Results: ${numHits} found. Displaying results ${firstHit+1} to ${lastHit}.</h2>
-    <h3>More recent results are displayed first.</h3>
-    <hr/>
-    # for hit in results:
-    <p>${hit.number}. <a href="${hit.path}">${hit.title}</a><br/><em>${hit.description} &hellip;</em><br/></p>
-    # endfor
-    <p>Result Navigation:
-    # for i in range(0, maxPage):
-    # if i == currentPage:
-    ${i+1}
-    # else:
-    <a href="search?query=${query}&amp;search_list=${search_list}&amp;page=${i+1}">${i+1}</a>
-    # endif
-    # endfor
-    </p>
+      # endif
 
-    # endif
-    # endif
-
+      ${ super() }
     </div>
-
-    ${ super() }
-
     # endblock content
-
   </body>
 </html>

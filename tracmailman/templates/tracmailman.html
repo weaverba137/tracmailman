@@ -1,7 +1,7 @@
 # extends 'layout.html'
 <!DOCTYPE html>
 <html>
-<head>
+  <head>
     <title>
       # block title
       #   if title:
@@ -13,45 +13,43 @@
     # block head
     ${ super() }
     # endblock head
-</head>
+  </head>
+  <body>
+    # block content
+    <div id="content" class="tracmailman">
+      <h1><label for="search">Mailing List Search</label></h1>
 
-<body>
-  # block content
-  <h1>Mailing List Search</h1>
-  # if authenticated:
+      # if authenticated:
+      <form action="tracmailman/search" method="get" id="update">
+        <input type="text" name="query" value="${query}"/>
+        <select name="search_list">
+          <option value="all" selected="selected">All lists</option>
+          # for list in mail_archives:
+          <option value="${list}">${list}</option>
+          # endfor
+        </select>
+        <input type="submit" value="Search"/>
+      </form>
+      <div class="trac-help">
+        <p><strong>Note:</strong> Documentation on all search capabilities can be found <a href="https://www.esa.org/tiee/search/html/swish-search.html#searching_syntax_and_operations">here</a>.</p>
+      </div>
 
-    <form action="tracmailman/search" method="post" id="update">
-      ${jmacros.form_token_input()}
-      <input type="text" name="query" value="${query}"/>
-      <select name="search_list">
-        <option value="all" selected="selected">All lists</option>
+      <h2>Browse Mailing Archives</h2>
+      <h3>Choose an archive to browse.</h3>
+      <ul>
         # for list in mail_archives:
-        <option value="${list}">${list}</option>
+        # if list in pub_archives:
+        <li><a href="tracmailman/browser/public/${list}/index.html">${list}</a></li>
+        # endif
+        # if list in priv_archives:
+        <li><a href="tracmailman/browser/private/${list}/index.html">${list}</a></li>
+        # endif
         # endfor
-      </select>
-      <input type="submit" value="Search"/>
-    </form>
-
-
-    <h3>Browse Mailing Archives</h3>
-    <p>Choose an archive to browse.</p>
-    <ul>
-      # for list in mail_archives:
-      # if list in pub_archives:
-      <li><a href="tracmailman/browser/public/${list}/index.html">${list}</a></li>
+      </ul>
       # endif
-      # if list in priv_archives:
-      <li><a href="tracmailman/browser/private/${list}/index.html">${list}</a></li>
-      # endif
-      # endfor
-    </ul>
-    <br/>
-  # endif
 
-  <p>Documentation on all search capabilities can be found <a href="https://www.esa.org/tiee/search/html/swish-search.html#searching_syntax_and_operations">here</a>.</p>
-
-  ${ super() }
-
-  # endblock content
-</body>
+      ${ super() }
+    </div>
+    # endblock content
+  </body>
 </html>
