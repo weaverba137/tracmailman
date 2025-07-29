@@ -279,14 +279,17 @@ class TracMailManSearchPlugin(Component):
             return 'tracmailmansearch.html', data
 
         # Add mailing lists to be displayed in the search
+        data['private_archives'] = []
+        data['public_archives'] = []
         data['mail_archives'] = []
 
         for privarchive in os.listdir(mail_archive_path + 'private'):
             if privarchive not in private_archives and privarchive[-4:] != "mbox":
-                data['mail_archives'].append(privarchive)
+                data['private_archives'].append(privarchive)
         for pubarchive in os.listdir(mail_archive_path + 'public'):
-            if pubarchive not in private_archives and pubarchive[-4:] != "mbox" and pubarchive not in data['mail_archives']:
-                data['mail_archives'].append(pubarchive)
+            if pubarchive not in private_archives and pubarchive[-4:] != "mbox" and pubarchive not in data['private_archives']:
+                data['public_archives'].append(pubarchive)
+        data['mail_archives'] = data['private_archives'] + data['public_archives']
         data['mail_archives'].sort()
 
         # Grab the search query
@@ -310,8 +313,12 @@ class TracMailManSearchPlugin(Component):
 
         try:
             handle = SwishE.new(swishIndex)
-        except Exception as e:
-            chrome.add_warning(req, 'Search index not found. Please contact the administrator for help.')
+        except SwishE.error as e:
+            if search_list in data['private_archives']:
+                search_list_href = f"browser/private/{search_list}/index.html"
+            else:
+                search_list_href = f"browser/public/{search_list}/index.html"
+            chrome.add_warning(req, f'Search index "{search_list}" not found. It is possible that this mailing list has never been used. See <a href="{search_list_href}">{search_list} archives</a> to confirm.')
             return 'tracmailmansearch.html', data
 
         # Run the query using the search engine
