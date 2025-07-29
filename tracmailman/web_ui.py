@@ -30,17 +30,68 @@ def authenticated(req):
     return True
 
 
-class MailManPluginIndex(Component):
+class _MailmanPluginCore(Component):
+    """Common methods for all components, to prevent code reuse.
+    """
+    _mail_archive_path = None
+    _private_lists = None
+    _private_archives = None
+    _public_archives = None
+
+    # IPermissionRequestor methods
+    def get_permission_actions(self):
+        return ['MAILMAN_VIEW', ('MAILMAN_ADMIN', ['MAILMAN_VIEW'])]
+
+    # ITemplateProvider methods
+    def get_htdocs_dirs(self):
+        from pkg_resources import resource_filename
+        return [('tracmailman', resource_filename(__name__, 'templates'))]
+
+    def get_templates_dirs(self):
+        from pkg_resources import resource_filename
+        return [resource_filename(__name__, 'templates')]
+
+    # Other common functionality
+    def mail_archive_path(self):
+        if self._mail_archive_path is None:
+            path = self.env.config.get('tracmailman', 'mail_archive_path')
+            if path[-1] != '/':
+                path += '/'
+            self._mail_archive_path = path
+        return self._mail_archive_path
+
+    def private_lists(self):
+        if self._private_lists is None:
+            self._private_lists = self.env.config.getlist('tracmailman', 'private_lists')
+        return self._private_lists
+
+    def private_archives(self):
+        if self._private_archives is None:
+            self._private_archives = list()
+            for a in os.listdir(os.path.join(self.mail_archive_path(), 'private')):
+                if a not in self.private_lists() and a[-4:] != "mbox":
+                    self._private_archives.append(a)
+        return self._private_archives
+
+    def public_archives(self):
+        if self._public_archives is None:
+            self._public_archives = list()
+            for a in os.listdir(os.path.join(self.mail_archive_path(), 'public')):
+                if a not in self.private_lists() and a[-4:] != "mbox" and a not in self.private_archives():
+                    self._public_archives.append(a)
+        return self._public_archives
+
+    def mail_archives(self):
+        return list(sorted(self.private_archives() + self.public_archives()))
+
+
+class MailManPluginIndex(_MailmanPluginCore):
     """
     The main page of the TracMailman plugin. This displays the search box,
     with a drop-down list of all the mailing lists to search by, as well as
     a list of the mailing archives for manual browsing.
     """
     implements(INavigationContributor, IRequestHandler, ITemplateProvider, IPermissionRequestor)
-
-    # IPermissionRequestor methods
-    def get_permission_actions(self):
-        return ['MAILMAN_VIEW',('MAILMAN_ADMIN', ['MAILMAN_VIEW'])]
 
     # INavigationContributor methods
     def get_active_navigation_item(self, req):
@@ -63,13 +114,9 @@ class MailManPluginIndex(Component):
         """
         return re.match(r'^/tracmailman$', req.path_info)
 
-
     def process_request(self, req):
         req.perm.require("MAILMAN_VIEW")
         # The full path to where the mailman archives are stored
-        mail_archive_path = self.env.config.get('tracmailman', 'mail_archive_path')
-        if mail_archive_path[-1] != '/':
-            mail_archive_path += '/'
 
         data = {}
         data['title'] = 'Mailing List Search'
@@ -80,33 +127,15 @@ class MailManPluginIndex(Component):
         if not data['authenticated']:
             return 'tracmailman.html', data
 
-        # The list of mailing list archives
-        data['mail_archives'] = []
-        data['priv_archives'] = []
-        data['pub_archives'] = []
+        # The lists of mailing list archives to be displayed.
+        data['priv_archives'] = self.private_archives()
+        data['pub_archives'] = self.public_archives()
+        data['mail_archives'] = self.mail_archives()
 
-        # Add mailing lists to be displayed in the search and browser
-        for privarchive in os.listdir(mail_archive_path + 'private'):
-            if privarchive not in self.env.config.getlist('tracmailman', 'private_lists') and privarchive[-4:] != "mbox":
-                data['priv_archives'].append(privarchive)
-        for pubarchive in os.listdir(mail_archive_path + 'public'):
-            if pubarchive not in self.env.config.getlist('tracmailman', 'private_lists') and pubarchive[-4:] != "mbox" and pubarchive not in data['priv_archives']:
-                data['pub_archives'].append(pubarchive)
-        data['mail_archives'] = data['priv_archives'] + data['pub_archives']
-        data['mail_archives'].sort()
         return 'tracmailman.html', data
 
-    # ITemplateProvider methods
-    def get_htdocs_dirs(self):
-        from pkg_resources import resource_filename
-        return [('tracmailman', resource_filename(__name__, 'templates'))]
 
-    def get_templates_dirs(self):
-        from pkg_resources import resource_filename
-        return [resource_filename(__name__, 'templates')]
-
-
-class MailManPluginBrowser(Component):
+class MailManPluginBrowser(_MailmanPluginCore):
     """
     Takes a request and serves the correct document.  A request such
     as
@@ -129,10 +158,6 @@ class MailManPluginBrowser(Component):
     """
     implements(IRequestHandler, ITemplateProvider, IPermissionRequestor)
 
-    # IPermissionRequestor methods
-    def get_permission_actions(self):
-        return ['MAILMAN_VIEW',('MAILMAN_ADMIN', ['MAILMAN_VIEW'])]
-
     # IRequestHandler methods
     def match_request(self, req):
         """
@@ -141,7 +166,6 @@ class MailManPluginBrowser(Component):
         """
         return re.match(r'^/tracmailman/browser/', req.path_info)
 
-
     def process_request(self, req):
         req.perm.require("MAILMAN_VIEW")
         # This is a workaround for bug: http://trac.edgewall.org/ticket/5628
@@ -149,11 +173,6 @@ class MailManPluginBrowser(Component):
         # if sys.getdefaultencoding() == 'ascii':
         #     sys.setdefaultencoding("latin1")
         # End: workaround
-
-        # The full path to where the mailman archives are stored
-        mail_archive_path = self.env.config.get('tracmailman', 'mail_archive_path')
-        if mail_archive_path[-1] != '/':
-            mail_archive_path += "/"
 
         data = {}
         data['title'] = 'Mailing List Archive Browser'
@@ -176,12 +195,11 @@ class MailManPluginBrowser(Component):
         extension= result.group(4)
 
         # Check if user is trying to access a private list
-        if listname in self.env.config.getlist('tracmailman', 'private_lists'):
+        if listname in self.private_lists():
             chrome.add_warning(req, 'This list is private and not browsable. Please go through the standard Mailman interface.')
             return 'tracmailmanbrowser.html', data
 
-
-        path = mail_archive_path + priv + '/' + listname + '/' + docID + '.' + extension
+        path = self.mail_archive_path() + priv + '/' + listname + '/' + docID + '.' + extension
         if os.path.isfile(path):
             with open(path, 'r') as archivedFile:
                 archivedMail = archivedFile.read()
@@ -224,22 +242,9 @@ class MailManPluginBrowser(Component):
 
             return 'tracmailmanbrowser.html', data
 
-    # ITemplateProvider methods
-    def get_htdocs_dirs(self):
-        from pkg_resources import resource_filename
-        return [('tracmailman', resource_filename(__name__, 'templates'))]
 
-    def get_templates_dirs(self):
-        from pkg_resources import resource_filename
-        return [resource_filename(__name__, 'templates')]
-
-
-class TracMailManSearchPlugin(Component):
+class TracMailManSearchPlugin(_MailmanPluginCore):
     implements(IRequestHandler, ITemplateProvider, IPermissionRequestor)
-
-    # IPermissionRequestor methods
-    def get_permission_actions(self):
-        return ['MAILMAN_VIEW',('MAILMAN_ADMIN', ['MAILMAN_VIEW'])]
 
     # IRequestHandler methods
     def match_request(self, req):
@@ -258,9 +263,7 @@ class TracMailManSearchPlugin(Component):
         # End: workaround
 
         # The full path to where the mailman archives are stored
-        mail_archive_path = self.env.config.get('tracmailman', 'mail_archive_path')
-        if mail_archive_path[-1] != '/':
-            mail_archive_path += '/'
+        mail_archive_path = self.mail_archive_path()
 
         # The full path to where the indices are stored
         search_index_path = self.env.config.get('tracmailman', 'search_index_path')
@@ -268,7 +271,7 @@ class TracMailManSearchPlugin(Component):
             search_index_path += '/'
 
         # The private archives not to be searched
-        private_archives = self.env.config.getlist('tracmailman', 'private_lists')
+        private_lists = self.private_lists()
 
         data = {}
         data['title'] = 'Mailing List Search'
@@ -279,18 +282,7 @@ class TracMailManSearchPlugin(Component):
             return 'tracmailmansearch.html', data
 
         # Add mailing lists to be displayed in the search
-        data['private_archives'] = []
-        data['public_archives'] = []
-        data['mail_archives'] = []
-
-        for privarchive in os.listdir(mail_archive_path + 'private'):
-            if privarchive not in private_archives and privarchive[-4:] != "mbox":
-                data['private_archives'].append(privarchive)
-        for pubarchive in os.listdir(mail_archive_path + 'public'):
-            if pubarchive not in private_archives and pubarchive[-4:] != "mbox" and pubarchive not in data['private_archives']:
-                data['public_archives'].append(pubarchive)
-        data['mail_archives'] = data['private_archives'] + data['public_archives']
-        data['mail_archives'].sort()
+        data['mail_archives'] = self.mail_archives()
 
         # Grab the search query
         query = req.args.get('query', None)
@@ -314,11 +306,7 @@ class TracMailManSearchPlugin(Component):
         try:
             handle = SwishE.new(swishIndex)
         except SwishE.error as e:
-            if search_list in data['private_archives']:
-                search_list_href = f"browser/private/{search_list}/index.html"
-            else:
-                search_list_href = f"browser/public/{search_list}/index.html"
-            chrome.add_warning(req, f'Search index "{search_list}" not found. It is possible that this mailing list has never been used. See <a href="{search_list_href}">{search_list} archives</a> to confirm.')
+            chrome.add_warning(req, f'Search index for "{search_list}" not found. It is possible that this mailing list has never been used. Browse "{search_list}" on the main Mailing Lists page to confirm.')
             return 'tracmailmansearch.html', data
 
         # Run the query using the search engine
@@ -329,17 +317,17 @@ class TracMailManSearchPlugin(Component):
             return 'tracmailmansearch.html', data
 
         # The number of hits
-        #numHits = swishResults.hits()
+        # numHits = swishResults.hits()
 
         # If we searched all the mailing lists, remove the ones from the private lists
-        #if search_list == 'all':
-        #    for result in swishResults:
-        #        msg = result.getProperty('swishdocpath')
-        #        for private_list in private_archives:
-        #            if private_list in msg:
-        #                numHits -= 1
+        # if search_list == 'all':
+        #     for result in swishResults:
+        #         msg = result.getProperty('swishdocpath')
+        #         for private_list in private_lists:
+        #             if private_list in msg:
+        #                 numHits -= 1
         #
-        #data['numHits'] = numHits
+        # data['numHits'] = numHits
 
         ordered_results = []
         for swishResult in swishResults:
@@ -350,7 +338,7 @@ class TracMailManSearchPlugin(Component):
             list_name = regex.group(1)
             list_num = int(regex.group(2))
             # If we searched all the mailing lists, remove the ones from the private lists
-            if search_list == 'all' and list_name in private_archives:
+            if search_list == 'all' and list_name in private_lists:
                 continue
             # Obtain the mailing list number for this mail
             ordered_results.append((list_num, swishResult))
@@ -390,14 +378,14 @@ class TracMailManSearchPlugin(Component):
             hit = {}
             diskPath = sr.getProperty('swishdocpath')
             # Check if this msg is from a private list; if so, discard it
-            #valid = True
-            #for private_archive in private_archives:
-            #    if private_archive in diskPath:
-            #        valid = False
-            #        seen -= 1
-            #        break
-            #if not valid:
-            #    continue
+            # valid = True
+            # for private_archive in private_lists:
+            #     if private_archive in diskPath:
+            #         valid = False
+            #         seen -= 1
+            #         break
+            # if not valid:
+            #     continue
 
             webPath = diskPath.lstrip(mail_archive_path)
             # Just in case there is still a leading '/'
@@ -415,16 +403,3 @@ class TracMailManSearchPlugin(Component):
         data['results'] = results
         data['title'] += " - " + '"' + query + '"'
         return 'tracmailmansearch.html', data
-
-
-    # ITemplateProvider methods
-    def get_htdocs_dirs(self):
-        from pkg_resources import resource_filename
-        return [('tracswishe', resource_filename(__name__, 'templates'))]
-
-
-    def get_templates_dirs(self):
-        from pkg_resources import resource_filename
-        return [resource_filename(__name__, 'templates')]
-
-
