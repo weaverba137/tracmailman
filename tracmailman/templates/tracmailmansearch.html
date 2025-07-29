@@ -17,22 +17,28 @@
   <body>
     # block content
     <div id="content" class="tracmailman">
-      <h1><label for="query">Mailing List Search</label></h1>
+      <h1>Mailing List Search</h1>
 
       # if authenticated:
       <form action="search" method="get" id="update">
-        <input type="text" name="query" id="query" value="${query}" class="trac-autofocus" size="40"/>
-        <select name="search_list">
-          <option value="all" ${{'selected': search_list == 'all'}|htmlattr}>All lists</option>
-          # for list in mail_archives:
-          <option value="${list}" ${{'selected': search_list == list}|htmlattr}>${list}</option>
-          # endfor
-        </select>
-        <input type="submit" value="Search" />
+        <fieldset>
+          <legend>Search Form</legend>
+          <div class="field"><label for="query">Query: <input type="text" name="query" id="query" value="${query}" class="trac-autofocus" size="40"/></label></div>
+          <div class="field">
+            <label for="search_list">List Name:
+              <select name="search_list" id="search_list">
+                <option value="all" ${{'selected': search_list == 'all'}|htmlattr}>All lists</option>
+                # for list in mail_archives:
+                <option value="${list}" ${{'selected': search_list == list}|htmlattr}>${list}</option>
+                # endfor
+              </select>
+            </label>
+          </div>
+          <div class="buttons"><input type="submit" value="Search" /></div>
+          <p class="help">Documentation on all search capabilities can be found <a href="https://www.esa.org/tiee/search/html/swish-search.html#searching_syntax_and_operations">here</a>.</p>
+        </fieldset>
       </form>
-      <div class="trac-help">
-        <p><strong>Note:</strong> Documentation on all search capabilities can be found <a href="https://www.esa.org/tiee/search/html/swish-search.html#searching_syntax_and_operations">here</a>.</p>
-      </div>
+
       # if numHits == 0:
       <h2>No results were found.</h2>
       # endif
